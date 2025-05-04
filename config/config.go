@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -16,20 +18,26 @@ type Config struct {
 }
 
 func LoadConfig() Config {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	maxPages, err := strconv.Atoi(getEnv("MAX_PAGES", "1"))
 	if err != nil {
-		maxPages = 1
+		maxPages = 10
 	}
 	maxWorkers, err := strconv.Atoi(getEnv("MAX_WORKERS", "10"))
 	if err != nil {
 		maxWorkers = 10
 	}
-	collectOutfile := getEnv("COLLECT_OUTFILE", "data/runs.csv")
-	analysisOutfile := getEnv("ANALYSIS_OUTFILE", "data/analysis.csv")
+	collectOutfile := getEnv("COLLECT_OUTFILE", "runs.csv")
+	analysisOutfile := getEnv("ANALYSIS_OUTFILE", "analysis.csv")
 
 	githubRepo := getEnv("GITHUB_REPO", "")
 	if githubRepo == "" {
-		log.Fatal("No GIthub repo provided")
+		log.Fatal("No Github repo provided")
 	}
 
 	return Config{

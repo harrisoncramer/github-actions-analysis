@@ -11,9 +11,7 @@ import (
 )
 
 const (
-	perPage    = 100
 	apiBaseURL = "https://api.github.com"
-	maxWorkers = 10
 )
 
 type WorkflowRun struct {
@@ -39,20 +37,23 @@ type JobsResponse struct {
 }
 
 type JobRecord struct {
-	RunID        int64
-	WorkflowName string
-	Job          Job
+	runID        int64
+	workflowName string
+	job          Job
 }
 
 type GitHubClient struct {
-	Repo       string
-	BaseURL    string
-	Token      string
-	HTTPClient *http.Client
+	repo    string
+	baseURL string
+	token   string
+	client  *http.Client
+	perPage int
 }
 
 type GithubClientParams struct {
-	repo string
+	repo       string
+	maxWorkers int
+	perPage    int
 }
 
 func NewGitHubClient(params GithubClientParams) *GitHubClient {
@@ -61,21 +62,22 @@ func NewGitHubClient(params GithubClientParams) *GitHubClient {
 		log.Fatal("GITHUB_TOKEN environment variable not set")
 	}
 	return &GitHubClient{
-		Repo:       params.repo,
-		BaseURL:    apiBaseURL,
-		Token:      token,
-		HTTPClient: &http.Client{},
+		repo:    params.repo,
+		baseURL: apiBaseURL,
+		token:   token,
+		perPage: params.perPage,
+		client:  &http.Client{},
 	}
 }
 
 func (c *GitHubClient) get(endpoint string) ([]byte, error) {
-	url := c.BaseURL + endpoint
+	url := c.baseURL + endpoint
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 
 	fmt.Printf("Fetching %s\n", url)
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +87,7 @@ func (c *GitHubClient) get(endpoint string) ([]byte, error) {
 }
 
 func (c *GitHubClient) FetchWorkflowRuns(page int) ([]WorkflowRun, error) {
-	endpoint := fmt.Sprintf("/repos/%s/actions/runs?per_page=%d&page=%d", c.Repo, perPage, page)
+	endpoint := fmt.Sprintf("/repos/%s/actions/runs?per_page=%d&page=%d", c.repo, c.perPage, page)
 	data, err := c.get(endpoint)
 	if err != nil {
 		return nil, err
@@ -96,7 +98,7 @@ func (c *GitHubClient) FetchWorkflowRuns(page int) ([]WorkflowRun, error) {
 }
 
 func (c *GitHubClient) FetchJobsForRun(run WorkflowRun) ([]JobRecord, error) {
-	endpoint := fmt.Sprintf("/repos/%s/actions/runs/%d/jobs", c.Repo, run.ID)
+	endpoint := fmt.Sprintf("/repos/%s/actions/runs/%d/jobs", c.repo, run.ID)
 	data, err := c.get(endpoint)
 	if err != nil {
 		return nil, err
@@ -109,9 +111,9 @@ func (c *GitHubClient) FetchJobsForRun(run WorkflowRun) ([]JobRecord, error) {
 	var records []JobRecord
 	for _, job := range result.Jobs {
 		records = append(records, JobRecord{
-			RunID:        run.ID,
-			WorkflowName: run.Name,
-			Job:          job,
+			runID:        run.ID,
+			workflowName: run.Name,
+			job:          job,
 		})
 	}
 	return records, nil

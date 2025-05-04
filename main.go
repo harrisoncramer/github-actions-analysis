@@ -4,6 +4,7 @@ import (
 	"analysis/analysis"
 	"analysis/collect"
 	"analysis/config"
+	"log"
 )
 
 func main() {
@@ -11,11 +12,19 @@ func main() {
 
 	collect.Collect(collect.CollectParams{
 		GithubRepo: c.GithubRepo,
-		MaxPages:   c.MaxPages,
 		MaxWorkers: c.MaxWorkers,
+		MaxPages:   c.MaxPages,
 		Outfile:    c.CollectOutfile,
+		PerPage:    100,
 	})
-	analysis.Analyze(analysis.AnalyzeParams{
-		Outfile: c.AnalysisOutfile,
+
+	analyzer := analysis.NewAnalyzer(analysis.AnalyzeParams{
+		InputPath:  c.CollectOutfile,
+		OutputPath: c.AnalysisOutfile,
 	})
+	err := analyzer.Analyze()
+	if err != nil {
+		log.Fatalf("Failed to perform analysis: %v", err)
+	}
+
 }

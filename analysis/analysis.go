@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 )
@@ -13,16 +14,77 @@ type JobStats struct {
 	Durations []int
 }
 
-func percentile(sorted []int, p float64) int {
-	if len(sorted) == 0 {
-		return 0
-	}
-	k := int(float64(len(sorted)-1) * p)
-	return sorted[k]
+type AnalyzeParams struct {
+	InputPath  string // formerly Outfile, renamed for clarity
+	OutputPath string
 }
 
-func writeAnalysisToFile(jobDurations map[string]*JobStats, outputPath string) error {
-	outFile, err := os.Create(outputPath)
+type Analyzer struct {
+	inputPath    string
+	outputPath   string
+	jobDurations map[string]*JobStats
+}
+
+func NewAnalyzer(params AnalyzeParams) *Analyzer {
+	return &Analyzer{
+		inputPath:    params.InputPath,
+		outputPath:   params.OutputPath,
+		jobDurations: make(map[string]*JobStats),
+	}
+}
+
+func (a *Analyzer) Analyze() error {
+	file, err := os.Open(fmt.Sprintf("data/%s", a.inputPath))
+	if err != nil {
+		return fmt.Errorf("failed to open input file: %w", err)
+	}
+	defer file.Close()
+
+	reader := csv.NewReader(file)
+	headers, err := reader.Read()
+	if err != nil {
+		return fmt.Errorf("failed to read headers: %w", err)
+	}
+
+	jobNameIdx, durationIdx := -1, -1
+	for i, h := range headers {
+		switch h {
+		case "job_name":
+			jobNameIdx = i
+		case "duration_seconds":
+			durationIdx = i
+		}
+	}
+	if jobNameIdx == -1 || durationIdx == -1 {
+		return fmt.Errorf("expected 'job_name' and 'duration_seconds' columns")
+	}
+
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil || len(record) <= durationIdx {
+			continue
+		}
+
+		job := record[jobNameIdx]
+		dur, err := strconv.Atoi(record[durationIdx])
+		if err != nil {
+			continue
+		}
+
+		if _, ok := a.jobDurations[job]; !ok {
+			a.jobDurations[job] = &JobStats{}
+		}
+		a.jobDurations[job].Durations = append(a.jobDurations[job].Durations, dur)
+	}
+
+	return a.writeAnalysisToFile()
+}
+
+func (a *Analyzer) writeAnalysisToFile() error {
+	outFile, err := os.Create(filepath.Join("data", a.outputPath))
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
@@ -36,7 +98,7 @@ func writeAnalysisToFile(jobDurations map[string]*JobStats, outputPath string) e
 		return fmt.Errorf("failed to write headers: %w", err)
 	}
 
-	for job, stats := range jobDurations {
+	for job, stats := range a.jobDurations {
 		durs := stats.Durations
 		sort.Ints(durs)
 
@@ -64,59 +126,14 @@ func writeAnalysisToFile(jobDurations map[string]*JobStats, outputPath string) e
 			return fmt.Errorf("failed to write record: %w", err)
 		}
 	}
+
 	return nil
 }
 
-type AnalyzeParams struct {
-	Outfile string
-}
-
-func Analyze(params AnalyzeParams) {
-	file, err := os.Open(params.Outfile)
-	if err != nil {
-		panic(err)
+func percentile(sorted []int, p float64) int {
+	if len(sorted) == 0 {
+		return 0
 	}
-	defer file.Close()
-
-	reader := csv.NewReader(file)
-	headers, _ := reader.Read() // skip header
-	jobNameIdx, durationIdx := -1, -1
-	for i, h := range headers {
-		switch h {
-		case "job_name":
-			jobNameIdx = i
-		case "duration_seconds":
-			durationIdx = i
-		}
-	}
-	if jobNameIdx == -1 || durationIdx == -1 {
-		panic("Expected 'job_name' and 'duration_seconds' columns")
-	}
-
-	jobDurations := map[string]*JobStats{}
-
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			continue
-		}
-
-		job := record[jobNameIdx]
-		dur, err := strconv.Atoi(record[durationIdx])
-		if err != nil {
-			continue
-		}
-
-		if _, ok := jobDurations[job]; !ok {
-			jobDurations[job] = &JobStats{}
-		}
-		jobDurations[job].Durations = append(jobDurations[job].Durations, dur)
-	}
-
-	if err := writeAnalysisToFile(jobDurations, "data/analysis.csv"); err != nil {
-		panic(err)
-	}
+	k := int(float64(len(sorted)-1) * p)
+	return sorted[k]
 }
