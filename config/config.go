@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -15,6 +16,8 @@ type Config struct {
 	CollectOutfile  string
 	AnalysisOutfile string
 	GithubRepo      string
+	StartDate       *time.Time
+	EndDate         *time.Time
 }
 
 func LoadConfig() Config {
@@ -40,12 +43,32 @@ func LoadConfig() Config {
 		log.Fatal("No Github repo provided")
 	}
 
+	startDate := getEnv("START_DATE", "")
+	var startDateParsed *time.Time
+	if startDate != "" {
+		parsedTime, err := time.Parse(time.RFC3339, startDate)
+		if err == nil {
+			startDateParsed = &parsedTime
+		}
+	}
+
+	endDate := getEnv("END_DATE", "")
+	var endDateParsed *time.Time
+	if endDate != "" {
+		parsedTime, err := time.Parse(time.RFC3339, endDate)
+		if err == nil {
+			endDateParsed = &parsedTime
+		}
+	}
+
 	return Config{
 		MaxPages:        maxPages,
 		MaxWorkers:      maxWorkers,
 		CollectOutfile:  collectOutfile,
 		AnalysisOutfile: analysisOutfile,
 		GithubRepo:      githubRepo,
+		StartDate:       startDateParsed,
+		EndDate:         endDateParsed,
 	}
 
 }

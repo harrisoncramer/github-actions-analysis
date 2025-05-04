@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 )
 
 type JobStats struct {
@@ -17,16 +18,22 @@ type JobStats struct {
 type AnalyzeParams struct {
 	InputPath  string // formerly Outfile, renamed for clarity
 	OutputPath string
+	StartDate  *time.Time
+	EndDate    *time.Time
 }
 
 type Analyzer struct {
 	inputPath    string
 	outputPath   string
+	startDate    *time.Time
+	endDate      *time.Time
 	jobDurations map[string]*JobStats
 }
 
 func NewAnalyzer(params AnalyzeParams) *Analyzer {
 	return &Analyzer{
+		startDate:    params.StartDate,
+		endDate:      params.EndDate,
 		inputPath:    params.InputPath,
 		outputPath:   params.OutputPath,
 		jobDurations: make(map[string]*JobStats),
@@ -46,17 +53,19 @@ func (a *Analyzer) Analyze() error {
 		return fmt.Errorf("failed to read headers: %w", err)
 	}
 
-	jobNameIdx, durationIdx := -1, -1
+	jobNameIdx, durationIdx, startedAtIdx := -1, -1, -1
 	for i, h := range headers {
 		switch h {
 		case "job_name":
 			jobNameIdx = i
 		case "duration_seconds":
 			durationIdx = i
+		case "started_at":
+			startedAtIdx = i
 		}
 	}
-	if jobNameIdx == -1 || durationIdx == -1 {
-		return fmt.Errorf("expected 'job_name' and 'duration_seconds' columns")
+	if jobNameIdx == -1 || durationIdx == -1 || startedAtIdx == -1 {
+		return fmt.Errorf("expected 'job_name', 'duration_seconds', and 'started_at' columns")
 	}
 
 	for {
@@ -64,8 +73,15 @@ func (a *Analyzer) Analyze() error {
 		if err == io.EOF {
 			break
 		}
-		if err != nil || len(record) <= durationIdx {
+		if err != nil || len(record) <= startedAtIdx {
 			continue
+		}
+
+		if a.startDate != nil && a.endDate != nil {
+			startedAt, err := time.Parse(time.RFC3339, record[startedAtIdx])
+			if err != nil || startedAt.Before(*a.startDate) || startedAt.After(*a.endDate) {
+				continue
+			}
 		}
 
 		job := record[jobNameIdx]

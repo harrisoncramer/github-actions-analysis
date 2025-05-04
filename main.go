@@ -21,6 +21,8 @@ func main() {
 	analyzer := analysis.NewAnalyzer(analysis.AnalyzeParams{
 		InputPath:  c.CollectOutfile,
 		OutputPath: c.AnalysisOutfile,
+		StartDate:  c.StartDate,
+		EndDate:    c.EndDate,
 	})
 	err := analyzer.Analyze()
 	if err != nil {
