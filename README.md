@@ -23,3 +23,12 @@ Then run an analysis on the data:
 ```sh
 go build . && ./gh-analysis analyze
 ```
+
+The output of the analysis will look something like this:
+
+```csv
+Job Name,Count,Avg (seconds),Min (seconds),Max (seconds),P90 (seconds),P99 (seconds)
+lint,66,244.30,0,823,554,615
+build,25,84.00,56,209,104,187
+release,1,258.00,258,258,258,258
+```

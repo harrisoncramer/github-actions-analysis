@@ -68,6 +68,17 @@ func (a *Analyzer) performAnalysis(durations DurationLookup) [][]string {
 
 	records := [][]string{}
 
+	// Add headers to analysis CSV
+	records = append(records, []string{
+		"Job Name",
+		"Count",
+		"Avg (seconds)",
+		"Min (seconds)",
+		"Max (seconds)",
+		"P90 (seconds)",
+		"P99 (seconds)",
+	})
+
 	for job, stats := range durations {
 		durs := stats.Durations
 		sort.Ints(durs)

@@ -70,16 +70,17 @@ func (a *Analyzer) Analyze() error {
 
 	analysis := a.performAnalysis(durations)
 
-	return a.writeAnalysisToFile(analysis)
+	return a.writeAnalysisToFile(analysis, []string{"workflow"})
 }
 
-func (a *Analyzer) writeAnalysisToFile(records [][]string) error {
+func (a *Analyzer) writeAnalysisToFile(records [][]string, headers []string) error {
 	fmt.Println("Writing analysis...")
 
 	outFile, err := os.Create(filepath.Join("data", a.outputPath))
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
 	}
+
 	defer outFile.Close()
 
 	writer := csv.NewWriter(outFile)
