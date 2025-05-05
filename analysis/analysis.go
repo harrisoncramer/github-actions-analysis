@@ -3,11 +3,8 @@ package analysis
 import (
 	"encoding/csv"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"time"
 )
 
@@ -15,8 +12,8 @@ type JobStats struct {
 	Durations []int
 }
 
-type AnalyzeParams struct {
-	InputPath  string // formerly Outfile, renamed for clarity
+type AnalyzePerformanceParams struct {
+	InputPath  string
 	OutputPath string
 	StartDate  *time.Time
 	EndDate    *time.Time
@@ -27,10 +24,21 @@ type Analyzer struct {
 	outputPath   string
 	startDate    *time.Time
 	endDate      *time.Time
-	jobDurations map[string]*JobStats
+	jobDurations DurationLookup
 }
 
-func NewAnalyzer(params AnalyzeParams) *Analyzer {
+type JobDataHeaderIdxs struct {
+	RunIdIdx        int
+	WorkflowNameIdx int
+	JobNameIdx      int
+	StatusIdx       int
+	ConclusionIdx   int
+	StartedAtIdx    int
+	CompletedAtIdx  int
+	DurationIdx     int
+}
+
+func AnalyzePerformance(params AnalyzePerformanceParams) *Analyzer {
 	return &Analyzer{
 		startDate:    params.StartDate,
 		endDate:      params.EndDate,
@@ -42,8 +50,6 @@ func NewAnalyzer(params AnalyzeParams) *Analyzer {
 
 func (a *Analyzer) Analyze() error {
 
-	fmt.Println("Reading data from file:", a.inputPath)
-
 	file, err := os.Open(fmt.Sprintf("data/%s", a.inputPath))
 	if err != nil {
 		return fmt.Errorf("failed to open input file: %w", err)
@@ -51,58 +57,27 @@ func (a *Analyzer) Analyze() error {
 	defer file.Close()
 
 	reader := csv.NewReader(file)
-	headers, err := reader.Read()
+	headerIndexes, err := a.readHeaders(reader)
+
 	if err != nil {
-		return fmt.Errorf("failed to read headers: %w", err)
+		return fmt.Errorf("failed to read run data: %w", err)
 	}
 
-	jobNameIdx, durationIdx, startedAtIdx := -1, -1, -1
-	for i, h := range headers {
-		switch h {
-		case "job_name":
-			jobNameIdx = i
-		case "duration_seconds":
-			durationIdx = i
-		case "started_at":
-			startedAtIdx = i
-		}
-	}
-	if jobNameIdx == -1 || durationIdx == -1 || startedAtIdx == -1 {
-		return fmt.Errorf("expected 'job_name', 'duration_seconds', and 'started_at' columns")
-	}
+	durations := a.collectDurations(collectDurationParams{
+		r:            reader,
+		startedAtIdx: headerIndexes.StartedAtIdx,
+		durationIdx:  headerIndexes.DurationIdx,
+		jobNameIdx:   headerIndexes.JobNameIdx,
+	})
 
-	for {
-		record, err := reader.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil || len(record) <= startedAtIdx {
-			continue
-		}
+	analysis := a.performAnalysis(durations)
 
-		if a.startDate != nil && a.endDate != nil {
-			startedAt, err := time.Parse(time.RFC3339, record[startedAtIdx])
-			if err != nil || startedAt.Before(*a.startDate) || startedAt.After(*a.endDate) {
-				continue
-			}
-		}
-
-		job := record[jobNameIdx]
-		dur, err := strconv.Atoi(record[durationIdx])
-		if err != nil {
-			continue
-		}
-
-		if _, ok := a.jobDurations[job]; !ok {
-			a.jobDurations[job] = &JobStats{}
-		}
-		a.jobDurations[job].Durations = append(a.jobDurations[job].Durations, dur)
-	}
-
-	return a.writeAnalysisToFile()
+	return a.writeAnalysisToFile(analysis)
 }
 
-func (a *Analyzer) writeAnalysisToFile() error {
+func (a *Analyzer) writeAnalysisToFile(records [][]string) error {
+	fmt.Println("Writing analysis...")
+
 	outFile, err := os.Create(filepath.Join("data", a.outputPath))
 	if err != nil {
 		return fmt.Errorf("failed to create output file: %w", err)
@@ -112,35 +87,7 @@ func (a *Analyzer) writeAnalysisToFile() error {
 	writer := csv.NewWriter(outFile)
 	defer writer.Flush()
 
-	headers := []string{"Job Name", "Count", "Avg (s)", "Min (s)", "Max (s)", "P90 (s)", "P99 (s)"}
-	if err := writer.Write(headers); err != nil {
-		return fmt.Errorf("failed to write headers: %w", err)
-	}
-
-	for job, stats := range a.jobDurations {
-		durs := stats.Durations
-		sort.Ints(durs)
-
-		count := len(durs)
-		sum := 0
-		for _, d := range durs {
-			sum += d
-		}
-		avg := float64(sum) / float64(count)
-		min := durs[0]
-		max := durs[len(durs)-1]
-		p90 := percentile(durs, 0.90)
-		p99 := percentile(durs, 0.99)
-
-		record := []string{
-			job,
-			strconv.Itoa(count),
-			fmt.Sprintf("%.2f", avg),
-			strconv.Itoa(min),
-			strconv.Itoa(max),
-			strconv.Itoa(p90),
-			strconv.Itoa(p99),
-		}
+	for _, record := range records {
 		if err := writer.Write(record); err != nil {
 			return fmt.Errorf("failed to write record: %w", err)
 		}
@@ -149,10 +96,47 @@ func (a *Analyzer) writeAnalysisToFile() error {
 	return nil
 }
 
-func percentile(sorted []int, p float64) int {
-	if len(sorted) == 0 {
-		return 0
+func (a *Analyzer) readHeaders(r *csv.Reader) (*JobDataHeaderIdxs, error) {
+	fmt.Println("Reading headers from file:", a.inputPath)
+
+	headers, err := r.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read headers: %w", err)
 	}
-	k := int(float64(len(sorted)-1) * p)
-	return sorted[k]
+
+	runIdIdx, workflowNameIdx, jobNameIdx, statusIdx, conclusionIdx, startedAtIdx, completedAtIdx, durationIdx := -1, -1, -1, -1, -1, -1, -1, -1
+	for i, h := range headers {
+		switch h {
+		case "run_id":
+			runIdIdx = i
+		case "workflow_name":
+			workflowNameIdx = i
+		case "job_name":
+			jobNameIdx = i
+		case "status":
+			statusIdx = i
+		case "conclusion":
+			conclusionIdx = i
+		case "started_at":
+			startedAtIdx = i
+		case "completed_at":
+			completedAtIdx = i
+		case "duration_seconds":
+			durationIdx = i
+		}
+	}
+	if runIdIdx == -1 || workflowNameIdx == -1 || jobNameIdx == -1 || statusIdx == -1 || conclusionIdx == -1 || startedAtIdx == -1 || completedAtIdx == -1 || durationIdx == -1 {
+		return nil, fmt.Errorf("expected all specified columns")
+	}
+
+	return &JobDataHeaderIdxs{
+		RunIdIdx:        runIdIdx,
+		WorkflowNameIdx: workflowNameIdx,
+		JobNameIdx:      jobNameIdx,
+		StatusIdx:       statusIdx,
+		ConclusionIdx:   conclusionIdx,
+		StartedAtIdx:    startedAtIdx,
+		CompletedAtIdx:  completedAtIdx,
+		DurationIdx:     durationIdx,
+	}, nil
 }

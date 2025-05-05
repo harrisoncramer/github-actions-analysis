@@ -35,7 +35,7 @@ func main() {
 		Short: "Analyze the collected data",
 		Run: func(cmd *cobra.Command, args []string) {
 			c := analysis.LoadAnalysisConfig()
-			analyzer := analysis.NewAnalyzer(analysis.AnalyzeParams{
+			analyzer := analysis.AnalyzePerformance(analysis.AnalyzePerformanceParams{
 				InputPath:  c.InputPath,
 				OutputPath: c.OutputPath,
 				StartDate:  c.AnalysisStartDate,
