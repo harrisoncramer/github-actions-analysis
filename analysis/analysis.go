@@ -20,11 +20,10 @@ type AnalyzePerformanceParams struct {
 }
 
 type Analyzer struct {
-	inputPath    string
-	outputPath   string
-	startDate    *time.Time
-	endDate      *time.Time
-	jobDurations DurationLookup
+	inputPath  string
+	outputPath string
+	startDate  *time.Time
+	endDate    *time.Time
 }
 
 type JobDataHeaderIdxs struct {
@@ -40,11 +39,10 @@ type JobDataHeaderIdxs struct {
 
 func AnalyzePerformance(params AnalyzePerformanceParams) *Analyzer {
 	return &Analyzer{
-		startDate:    params.StartDate,
-		endDate:      params.EndDate,
-		inputPath:    params.InputPath,
-		outputPath:   params.OutputPath,
-		jobDurations: make(map[string]*JobStats),
+		startDate:  params.StartDate,
+		endDate:    params.EndDate,
+		inputPath:  params.InputPath,
+		outputPath: params.OutputPath,
 	}
 }
 

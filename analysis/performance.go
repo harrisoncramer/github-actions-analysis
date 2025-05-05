@@ -25,10 +25,10 @@ func (a *Analyzer) collectDurations(params collectDurationParams) DurationLookup
 
 	for {
 		record, err := params.r.Read()
-		if err == io.EOF {
-			break
-		}
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			fmt.Printf("Skipping record due to error: %v\n", err)
 			continue
 		}
@@ -47,17 +47,17 @@ func (a *Analyzer) collectDurations(params collectDurationParams) DurationLookup
 		}
 
 		job := record[params.jobNameIdx]
-		if _, ok := a.jobDurations[job]; !ok {
-			a.jobDurations[job] = &JobStats{}
+		if _, ok := jobDurations[job]; !ok {
+			jobDurations[job] = &JobStats{}
 		}
-		a.jobDurations[job].Durations = append(a.jobDurations[job].Durations, dur)
+		jobDurations[job].Durations = append(jobDurations[job].Durations, dur)
 	}
 
 	return jobDurations
 }
 
 func (a *Analyzer) performAnalysis(durations DurationLookup) [][]string {
-	fmt.Println("Performing analysis...")
+	fmt.Printf("Performing analysis of %d records...\n", len(durations))
 
 	records := [][]string{}
 
