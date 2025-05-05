@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -37,7 +38,7 @@ func LoadCollectConfig() CollectConfig {
 		maxWorkers = 10
 	}
 	outputPath := getEnv("COLLECT_OUTPUT_PATH", "runs.csv")
-	githubRepo := getEnv("COLLECT_GITHUB_REPO", "")
+	githubRepo := os.Getenv("COLLECT_GITHUB_REPO")
 	if githubRepo == "" {
 		log.Fatal("No Github repo provided")
 	}
@@ -81,8 +82,9 @@ func LoadAnalysisConfig() AnalysisConfig {
 }
 
 func getEnv(key, fallback string) string {
-	if _, exists := os.LookupEnv(key); !exists {
-		panic("Missing environment variable: " + key)
+	if value, exists := os.LookupEnv(key); exists {
+		return value
 	}
+	fmt.Printf("%s not found, returning default '%s'\n", key, fallback)
 	return fallback
 }
