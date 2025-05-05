@@ -3,7 +3,6 @@ package collect
 import (
 	"encoding/csv"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,7 +19,7 @@ type CollectParams struct {
 }
 
 // Collect fetches workflow runs and jobs from GitHub and writes them to a CSV file.
-func Collect(params CollectParams) {
+func Collect(params CollectParams) error {
 	client := NewGitHubClient(GithubClientParams{
 		repo:       params.GithubRepo,
 		maxWorkers: params.MaxWorkers,
@@ -29,31 +28,31 @@ func Collect(params CollectParams) {
 
 	outFile, err := os.Create(filepath.Join("data", params.Outfile))
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to open outfile: %w", err)
 	}
 	defer outFile.Close()
 
 	writer := csv.NewWriter(outFile)
-	// Do NOT defer writer.Flush() here anymore
-
-	// Write headers before goroutine starts
-	writer.Write([]string{
+	err = writer.Write([]string{
 		"run_id", "workflow_name", "job_name",
 		"status", "conclusion", "started_at", "completed_at", "duration_seconds",
 	})
+	if err != nil {
+		return fmt.Errorf("failed to write headers to outfile: %w", err)
+	}
 
 	jobChan := make(chan JobRecord, 1000)
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, params.MaxWorkers)
+	errChan := make(chan error, params.MaxWorkers*params.MaxPages)
 
-	// Writer waitgroup
 	var writerWg sync.WaitGroup
 	writerWg.Add(1)
 	go func() {
 		defer writerWg.Done()
 		for record := range jobChan {
 			duration := int(record.job.CompletedAt.Sub(record.job.StartedAt).Seconds())
-			writer.Write([]string{
+			err := writer.Write([]string{
 				strconv.FormatInt(record.runID, 10),
 				record.workflowName,
 				record.job.Name,
@@ -63,14 +62,16 @@ func Collect(params CollectParams) {
 				record.job.CompletedAt.Format(time.RFC3339),
 				strconv.Itoa(duration),
 			})
+			if err != nil {
+				errChan <- fmt.Errorf("failed writing record to output file: %w", err)
+			}
 		}
 	}()
 
 	for page := 1; page <= params.MaxPages; page++ {
 		runs, err := client.FetchWorkflowRuns(page)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching workflow runs: %v\n", err)
-			continue
+			return fmt.Errorf("error fetching workflow runs: %v", err)
 		}
 		if len(runs) == 0 {
 			break
@@ -87,7 +88,7 @@ func Collect(params CollectParams) {
 				}()
 				records, err := client.FetchJobsForRun(run)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error fetching jobs for run %d: %v\n", run.ID, err)
+					errChan <- fmt.Errorf("error fetching jobs for run %d: %w", run.ID, err)
 					return
 				}
 				for _, record := range records {
@@ -100,8 +101,19 @@ func Collect(params CollectParams) {
 	go func() {
 		wg.Wait()
 		close(jobChan)
+		close(errChan)
 	}()
 
 	writerWg.Wait()
 	writer.Flush()
+
+	var errs []error
+	for err := range errChan {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("job fetch errors: %v", errs)
+	}
+
+	return nil
 }

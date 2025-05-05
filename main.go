@@ -20,13 +20,17 @@ func main() {
 		Short: "Collect data from the specified GitHub repository",
 		Run: func(cmd *cobra.Command, args []string) {
 			c := collect.LoadCollectConfig()
-			collect.Collect(collect.CollectParams{
+			err := collect.Collect(collect.CollectParams{
 				GithubRepo: c.GithubRepo,
 				MaxWorkers: c.MaxWorkers,
 				MaxPages:   c.MaxPages,
 				Outfile:    c.OutputPath,
 				PerPage:    100,
 			})
+			if err != nil {
+				log.Fatalf("Failed to collect data: %v", err)
+			}
+
 		},
 	}
 
