@@ -9,24 +9,25 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type Config struct {
-	Repo              string
-	MaxPages          int
-	MaxWorkers        int
-	CollectOutfile    string
-	GithubRepo        string
-	AnalysisOutfile   string
+type CollectConfig struct {
+	GithubRepo string
+	MaxPages   int
+	MaxWorkers int
+	OutputPath string
+}
+
+type AnalysisConfig struct {
+	InputPath         string
+	OutputPath        string
 	AnalysisStartDate *time.Time
 	AnalysisEndDate   *time.Time
 }
 
-func LoadConfig() Config {
-
+func LoadCollectConfig() CollectConfig {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-
 	maxPages, err := strconv.Atoi(getEnv("MAX_PAGES", "1"))
 	if err != nil {
 		maxPages = 10
@@ -35,14 +36,26 @@ func LoadConfig() Config {
 	if err != nil {
 		maxWorkers = 10
 	}
-	collectOutfile := getEnv("COLLECT_OUTFILE", "runs.csv")
-	analysisOutfile := getEnv("ANALYSIS_OUTFILE", "analysis.csv")
-
+	outputPath := getEnv("COLLECT_OUTPUT_PATH", "runs.csv")
 	githubRepo := getEnv("GITHUB_REPO", "")
 	if githubRepo == "" {
 		log.Fatal("No Github repo provided")
 	}
+	return CollectConfig{
+		GithubRepo: githubRepo,
+		MaxPages:   maxPages,
+		MaxWorkers: maxWorkers,
+		OutputPath: outputPath,
+	}
+}
 
+func LoadAnalysisConfig() AnalysisConfig {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	inputPath := getEnv("ANALYSIS_INPUT_PATH", "runs.csv")
+	outputPath := getEnv("ANALYSIS_OUTPUT_PATH", "analysis.csv")
 	analysisStartDate := getEnv("ANALYSIS_START_DATE", "")
 	var analysisStartDateParsed *time.Time
 	if analysisStartDate != "" {
@@ -51,7 +64,6 @@ func LoadConfig() Config {
 			analysisStartDateParsed = &parsedTime
 		}
 	}
-
 	analysisEndDate := getEnv("ANALYSIS_END_DATE", "")
 	var analysisEndDateParsed *time.Time
 	if analysisEndDate != "" {
@@ -60,22 +72,17 @@ func LoadConfig() Config {
 			analysisEndDateParsed = &parsedTime
 		}
 	}
-
-	return Config{
-		MaxPages:          maxPages,
-		MaxWorkers:        maxWorkers,
-		CollectOutfile:    collectOutfile,
-		GithubRepo:        githubRepo,
+	return AnalysisConfig{
+		InputPath:         inputPath,
+		OutputPath:        outputPath,
 		AnalysisStartDate: analysisStartDateParsed,
 		AnalysisEndDate:   analysisEndDateParsed,
-		AnalysisOutfile:   analysisOutfile,
 	}
-
 }
 
 func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
+	if _, exists := os.LookupEnv(key); !exists {
+		panic("Missing environment variable: " + key)
 	}
 	return fallback
 }

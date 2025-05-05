@@ -41,6 +41,9 @@ func NewAnalyzer(params AnalyzeParams) *Analyzer {
 }
 
 func (a *Analyzer) Analyze() error {
+
+	fmt.Println("Reading data from file:", a.inputPath)
+
 	file, err := os.Open(fmt.Sprintf("data/%s", a.inputPath))
 	if err != nil {
 		return fmt.Errorf("failed to open input file: %w", err)

@@ -20,12 +20,12 @@ func main() {
 		Use:   "collect",
 		Short: "Collect data from the specified GitHub repository",
 		Run: func(cmd *cobra.Command, args []string) {
-			c := config.LoadConfig()
+			c := config.LoadCollectConfig()
 			collect.Collect(collect.CollectParams{
 				GithubRepo: c.GithubRepo,
 				MaxWorkers: c.MaxWorkers,
 				MaxPages:   c.MaxPages,
-				Outfile:    c.CollectOutfile,
+				Outfile:    c.OutputPath,
 				PerPage:    100,
 			})
 		},
@@ -35,10 +35,10 @@ func main() {
 		Use:   "analyze",
 		Short: "Analyze the collected data",
 		Run: func(cmd *cobra.Command, args []string) {
-			c := config.LoadConfig()
+			c := config.LoadAnalysisConfig()
 			analyzer := analysis.NewAnalyzer(analysis.AnalyzeParams{
-				InputPath:  c.CollectOutfile,
-				OutputPath: c.AnalysisOutfile,
+				InputPath:  c.InputPath,
+				OutputPath: c.OutputPath,
 				StartDate:  c.AnalysisStartDate,
 				EndDate:    c.AnalysisEndDate,
 			})
