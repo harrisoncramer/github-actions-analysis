@@ -1,4 +1,4 @@
-# Github Analysis
+# Github Actions Analysis
 
 This is a simple script for downloading Github action stats and performing an analyis on them.
 
