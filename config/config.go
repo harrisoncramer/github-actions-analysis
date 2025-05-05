@@ -10,14 +10,14 @@ import (
 )
 
 type Config struct {
-	Repo            string
-	MaxPages        int
-	MaxWorkers      int
-	CollectOutfile  string
-	AnalysisOutfile string
-	GithubRepo      string
-	StartDate       *time.Time
-	EndDate         *time.Time
+	Repo              string
+	MaxPages          int
+	MaxWorkers        int
+	CollectOutfile    string
+	GithubRepo        string
+	AnalysisOutfile   string
+	AnalysisStartDate *time.Time
+	AnalysisEndDate   *time.Time
 }
 
 func LoadConfig() Config {
@@ -43,32 +43,32 @@ func LoadConfig() Config {
 		log.Fatal("No Github repo provided")
 	}
 
-	startDate := getEnv("START_DATE", "")
-	var startDateParsed *time.Time
-	if startDate != "" {
-		parsedTime, err := time.Parse(time.RFC3339, startDate)
+	analysisStartDate := getEnv("ANALYSIS_START_DATE", "")
+	var analysisStartDateParsed *time.Time
+	if analysisStartDate != "" {
+		parsedTime, err := time.Parse(time.RFC3339, analysisStartDate)
 		if err == nil {
-			startDateParsed = &parsedTime
+			analysisStartDateParsed = &parsedTime
 		}
 	}
 
-	endDate := getEnv("END_DATE", "")
-	var endDateParsed *time.Time
-	if endDate != "" {
-		parsedTime, err := time.Parse(time.RFC3339, endDate)
+	analysisEndDate := getEnv("ANALYSIS_END_DATE", "")
+	var analysisEndDateParsed *time.Time
+	if analysisEndDate != "" {
+		parsedTime, err := time.Parse(time.RFC3339, analysisEndDate)
 		if err == nil {
-			endDateParsed = &parsedTime
+			analysisEndDateParsed = &parsedTime
 		}
 	}
 
 	return Config{
-		MaxPages:        maxPages,
-		MaxWorkers:      maxWorkers,
-		CollectOutfile:  collectOutfile,
-		AnalysisOutfile: analysisOutfile,
-		GithubRepo:      githubRepo,
-		StartDate:       startDateParsed,
-		EndDate:         endDateParsed,
+		MaxPages:          maxPages,
+		MaxWorkers:        maxWorkers,
+		CollectOutfile:    collectOutfile,
+		GithubRepo:        githubRepo,
+		AnalysisStartDate: analysisStartDateParsed,
+		AnalysisEndDate:   analysisEndDateParsed,
+		AnalysisOutfile:   analysisOutfile,
 	}
 
 }
