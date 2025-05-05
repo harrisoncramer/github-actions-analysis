@@ -28,16 +28,16 @@ func LoadCollectConfig() CollectConfig {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	maxPages, err := strconv.Atoi(getEnv("MAX_PAGES", "1"))
+	maxPages, err := strconv.Atoi(getEnv("COLLECT_MAX_PAGES", "1"))
 	if err != nil {
 		maxPages = 10
 	}
-	maxWorkers, err := strconv.Atoi(getEnv("MAX_WORKERS", "10"))
+	maxWorkers, err := strconv.Atoi(getEnv("COLLECT_MAX_WORKERS", "10"))
 	if err != nil {
 		maxWorkers = 10
 	}
 	outputPath := getEnv("COLLECT_OUTPUT_PATH", "runs.csv")
-	githubRepo := getEnv("GITHUB_REPO", "")
+	githubRepo := getEnv("COLLECT_GITHUB_REPO", "")
 	if githubRepo == "" {
 		log.Fatal("No Github repo provided")
 	}
