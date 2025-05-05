@@ -33,9 +33,16 @@ func (a *Analyzer) collectDurations(params collectDurationParams) DurationLookup
 			continue
 		}
 
-		if a.startDate != nil && a.endDate != nil {
+		if a.startDate != nil {
 			startedAt, err := time.Parse(time.RFC3339, record[params.startedAtIdx])
-			if err != nil || startedAt.Before(*a.startDate) || startedAt.After(*a.endDate) {
+			if err != nil || startedAt.Before(*a.startDate) {
+				continue
+			}
+		}
+
+		if a.endDate != nil {
+			startedAt, err := time.Parse(time.RFC3339, record[params.startedAtIdx])
+			if err != nil || startedAt.After(*a.endDate) {
 				continue
 			}
 		}
