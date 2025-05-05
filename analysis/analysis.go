@@ -12,7 +12,7 @@ type JobStats struct {
 	Durations []int
 }
 
-type AnalyzePerformanceParams struct {
+type NewAnalyzerParams struct {
 	InputPath  string
 	OutputPath string
 	StartDate  *time.Time
@@ -37,7 +37,7 @@ type JobDataHeaderIdxs struct {
 	DurationIdx     int
 }
 
-func AnalyzePerformance(params AnalyzePerformanceParams) *Analyzer {
+func NewAnalyzer(params NewAnalyzerParams) *Analyzer {
 	return &Analyzer{
 		startDate:  params.StartDate,
 		endDate:    params.EndDate,
