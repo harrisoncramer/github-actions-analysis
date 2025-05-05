@@ -1,4 +1,4 @@
-module gh-analysis
+module github-actions-analysis
 
 go 1.24.2
 

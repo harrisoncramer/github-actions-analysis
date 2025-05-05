@@ -15,13 +15,13 @@ go build .
 First `collect` the Github Actions data:
 
 ```sh
-go build . && ./gh-analysis collect
+go build . && ./github-actions-analysis collect
 ```
 
 Then run an analysis on the data:
 
 ```sh
-go build . && ./gh-analysis analyze
+go build . && ./github-actions-analysis analyze
 ```
 
 The output of the analysis will look something like this:

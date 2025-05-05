@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gh-analysis/analysis"
-	"gh-analysis/collect"
+	"github-actions-analysis/analysis"
+	"github-actions-analysis/collect"
 	"log"
 	"os"
 
@@ -11,7 +11,7 @@ import (
 
 func main() {
 	var rootCmd = &cobra.Command{
-		Use:   "gh-analysis",
+		Use:   "github-actions-analysis",
 		Short: "CLI for data collection and analysis",
 	}
 
