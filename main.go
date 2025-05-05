@@ -3,7 +3,6 @@ package main
 import (
 	"gh-analysis/analysis"
 	"gh-analysis/collect"
-	"gh-analysis/config"
 	"log"
 	"os"
 
@@ -20,7 +19,7 @@ func main() {
 		Use:   "collect",
 		Short: "Collect data from the specified GitHub repository",
 		Run: func(cmd *cobra.Command, args []string) {
-			c := config.LoadCollectConfig()
+			c := collect.LoadCollectConfig()
 			collect.Collect(collect.CollectParams{
 				GithubRepo: c.GithubRepo,
 				MaxWorkers: c.MaxWorkers,
@@ -35,7 +34,7 @@ func main() {
 		Use:   "analyze",
 		Short: "Analyze the collected data",
 		Run: func(cmd *cobra.Command, args []string) {
-			c := config.LoadAnalysisConfig()
+			c := analysis.LoadAnalysisConfig()
 			analyzer := analysis.NewAnalyzer(analysis.AnalyzeParams{
 				InputPath:  c.InputPath,
 				OutputPath: c.OutputPath,

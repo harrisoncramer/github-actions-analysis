@@ -1,53 +1,19 @@
-package config
+package analysis
 
 import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
 )
-
-type CollectConfig struct {
-	GithubRepo string
-	MaxPages   int
-	MaxWorkers int
-	OutputPath string
-}
 
 type AnalysisConfig struct {
 	InputPath         string
 	OutputPath        string
 	AnalysisStartDate *time.Time
 	AnalysisEndDate   *time.Time
-}
-
-func LoadCollectConfig() CollectConfig {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	maxPages, err := strconv.Atoi(getEnv("COLLECT_MAX_PAGES", "1"))
-	if err != nil {
-		maxPages = 10
-	}
-	maxWorkers, err := strconv.Atoi(getEnv("COLLECT_MAX_WORKERS", "10"))
-	if err != nil {
-		maxWorkers = 10
-	}
-	outputPath := getEnv("COLLECT_OUTPUT_PATH", "runs.csv")
-	githubRepo := os.Getenv("COLLECT_GITHUB_REPO")
-	if githubRepo == "" {
-		log.Fatal("No Github repo provided")
-	}
-	return CollectConfig{
-		GithubRepo: githubRepo,
-		MaxPages:   maxPages,
-		MaxWorkers: maxWorkers,
-		OutputPath: outputPath,
-	}
 }
 
 func LoadAnalysisConfig() AnalysisConfig {
